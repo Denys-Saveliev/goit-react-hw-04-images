@@ -1,21 +1,20 @@
-import React, { Component } from 'react';
+import { useState } from 'react';
 import s from './SearchForm.module.css';
 import { toast } from 'react-toastify';
 import IconButton from 'components/IconButton';
 import { ReactComponent as SearchIcon } from '../../Icons/search.svg';
+import PropTypes from 'prop-types';
 
-class SearchForm extends Component {
-  state = {
-    search: '',
+function SearchForm({ onSubmit }) {
+  const [search, setSearch] = useState('');
+
+  const handleStateChange = e => {
+    setSearch(e.currentTarget.value.toLowerCase());
   };
 
-  handleStateChange = e => {
-    this.setState({ search: e.currentTarget.value.toLowerCase() });
-  };
-
-  handleSubmit = e => {
+  const handleSubmit = e => {
     e.preventDefault();
-    if (this.state.search.trim() === '') {
+    if (search.trim() === '') {
       return toast.error('Please insert valid request!', {
         position: 'top-left',
         autoClose: 3000,
@@ -23,30 +22,29 @@ class SearchForm extends Component {
       });
     }
 
-    this.props.onSubmit(this.state.search);
-    this.resetForm();
+    onSubmit(search);
+
+    setSearch('');
   };
 
-  resetForm = () => {
-    return this.setState({ search: '' });
-  };
+  return (
+    <form className={s.SearchForm} onSubmit={handleSubmit}>
+      <IconButton aria-label="search">
+        <SearchIcon width="20" height="20" />
+      </IconButton>
 
-  render() {
-    return (
-      <form className={s.SearchForm} onSubmit={this.handleSubmit}>
-        <IconButton aria-label="search">
-          <SearchIcon width="20" height="20" />
-        </IconButton>
-
-        <input
-          className={s.SearchForm__input}
-          type="text"
-          placeholder="Search images and photos"
-          onChange={this.handleStateChange}
-        />
-      </form>
-    );
-  }
+      <input
+        className={s.SearchForm__input}
+        type="text"
+        placeholder="Search images and photos"
+        onChange={handleStateChange}
+      />
+    </form>
+  );
 }
 
 export default SearchForm;
+
+SearchForm.propTypes = {
+  onSubmit: PropTypes.func.isRequired,
+};
