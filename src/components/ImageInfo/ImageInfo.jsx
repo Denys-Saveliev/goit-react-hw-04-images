@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { fetchImage, PER_PAGE } from '../../Service/PixabayApi';
 import Searchbar from '../Searchbar';
@@ -17,135 +17,118 @@ const Status = {
   REJECTED: 'rejected',
 };
 
-class ImageInfo extends Component {
-  state = {
-    search: '',
-    galleryItems: [],
-    page: 1,
-    status: Status.IDLE,
-    loadMore: false,
-    showModal: false,
-    modalImageId: null,
-  };
+function ImageInfo() {
+  const [search, setSearch] = useState('');
+  const [galleryItems, setGalleryItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState(Status.IDLE);
+  const [loadMore, setLoadMore] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalImageId, setModalImageId] = useState(null);
 
-  componentDidUpdate(prevProps, prevState) {
-    const prevName = prevState.search;
-    const nextName = this.state.search;
-    const nextPage = prevState.page !== this.state.page;
-    const newRequest = nextName !== prevName;
+  useEffect(() => {
+    if (search === '') {
+      return;
+    }
 
-    if (newRequest || nextPage) {
-      this.setState({ status: Status.PENDING });
+    setStatus(Status.PENDING);
 
-      fetchImage(nextName, this.state.page)
-        .then(data => {
-          const requestedImageAmount = data.totalHits;
-          if (requestedImageAmount === 0) {
-            this.setState({
-              status: Status.REJECTED,
-            });
-            toast.error('Please insert valid request!', {
-              position: 'top-left',
-              autoClose: 3000,
-              theme: 'colored',
-            });
-          }
-
-          const loadMore = this.state.page * PER_PAGE < requestedImageAmount;
-
-          if (newRequest) {
-            this.setState({
-              galleryItems: data.hits,
-              status: Status.RESOLVED,
-              loadMore,
-            });
-            return;
-          }
-
-          this.setState(prevState => ({
-            galleryItems: [...prevState.galleryItems, ...data.hits],
-            status: Status.RESOLVED,
-            loadMore,
-          }));
-        })
-        .catch(error => {
-          this.setState({
-            status: Status.REJECTED,
-          });
-          toast.error('Code error: ' + error, {
+    fetchImage(search, page)
+      .then(data => {
+        const requestedImageAmount = data.totalHits;
+        if (requestedImageAmount === 0) {
+          setStatus(Status.REJECTED);
+          toast.error('Please insert valid request!', {
             position: 'top-left',
             autoClose: 3000,
             theme: 'colored',
           });
+        }
+
+        const loadMore = page * PER_PAGE < requestedImageAmount;
+
+        if (page > 1) {
+          setGalleryItems(state => [...state, ...data.hits]);
+          setStatus(Status.RESOLVED);
+          setLoadMore(loadMore);
+        } else {
+          setGalleryItems(data.hits);
+          setStatus(Status.RESOLVED);
+          setLoadMore(loadMore);
+        }
+      })
+      .catch(error => {
+        setStatus(Status.REJECTED);
+        toast.error('Code error: ' + error, {
+          position: 'top-left',
+          autoClose: 3000,
+          theme: 'colored',
         });
-    }
-  }
+      });
+  }, [page, search]);
 
-  handleFormSubmit = search => {
-    this.setState({ search, page: 1 });
+  const handleFormSubmit = search => {
+    setSearch(search);
+    setPage(1);
   };
 
-  incrementPage = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+  const incrementPage = () => {
+    setPage(state => state + 1);
   };
 
-  toggleModal = () => {
-    this.setState(({ showModal }) => ({ showModal: !showModal }));
+  const toggleModal = () => {
+    setShowModal(!showModal);
   };
 
-  handleGalleryItemClick = id => {
-    this.setState({ modalImageId: id });
-    this.toggleModal();
+  const handleGalleryItemClick = id => {
+    setModalImageId(id);
+    toggleModal();
   };
 
-  setModalImageURL = id => {
-    return this.state.galleryItems.find(galleryItem => galleryItem.id === id);
+  const setModalImageURL = id => {
+    return galleryItems.find(galleryItem => galleryItem.id === id);
   };
 
-  render() {
-    const { status, galleryItems, loadMore, showModal, modalImageId } =
-      this.state;
-    const modalImageItem = this.setModalImageURL(modalImageId);
+  const modalImageItem = setModalImageURL(modalImageId);
 
-    return (
-      <>
-        <Searchbar>
-          <SearchForm onSubmit={this.handleFormSubmit} />
-        </Searchbar>
+  return (
+    <>
+      <Searchbar>
+        <SearchForm onSubmit={handleFormSubmit} />
+      </Searchbar>
 
-        {status === Status.IDLE && (
-          <h2 style={{ textAlign: 'center' }}>
-            Please enter your query in the search query
-          </h2>
-        )}
+      {status === Status.IDLE && (
+        <h2 style={{ textAlign: 'center' }}>
+          Please enter your query in the search query
+        </h2>
+      )}
 
-        {galleryItems && (
-          <>
-            <ImageGallery
-              imageGalleryItems={galleryItems}
-              onGalleryItemClick={this.handleGalleryItemClick}
-            />
-          </>
-        )}
-
-        {showModal && (
-          <Modal
-            imageURL={modalImageItem.largeImageURL}
-            imageAlt={modalImageItem.tags}
-            onClose={this.toggleModal}
+      {galleryItems && (
+        <>
+          <ImageGallery
+            imageGalleryItems={galleryItems}
+            onGalleryItemClick={handleGalleryItemClick}
           />
-        )}
+        </>
+      )}
 
-        {loadMore && status !== Status.PENDING && (
-          <LoadMore onClick={this.incrementPage} />
-        )}
+      {showModal && (
+        <Modal
+          imageURL={modalImageItem.largeImageURL}
+          imageAlt={modalImageItem.tags}
+          onClose={toggleModal}
+        />
+      )}
 
-        {status === Status.PENDING && <Loader />}
+      {loadMore && status !== Status.PENDING && (
+        <LoadMore onClick={incrementPage} />
+      )}
 
-        <ToastContainer style={{ justifyContent: 'center' }} />
-      </>
-    );
-  }
+      {status === Status.PENDING && <Loader />}
+
+      <ToastContainer style={{ justifyContent: 'center' }} />
+    </>
+  );
 }
 
 export default ImageInfo;
